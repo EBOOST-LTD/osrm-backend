@@ -190,3 +190,36 @@ When using the code in a (scientific) publication, please cite
  address = {New York, NY, USA},
 }
 ```
+
+## SETUP IN EBOOST
+Prepare machine resource 16GB RAM and 20GB storage
+```
+sudo fallocate -l 8G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+free -h
+
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+Download map
+```
+sudo su
+mkdir -p /docker/volumes/osrm-be/data
+cd /docker/volumes/osrm-be/data
+wget https://download.geofabrik.de/asia/vietnam-latest.osm.pbf
+```
+
+Extract and prepare data
+```
+docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/car.lua /data/vietnam-latest.osm.pbf || echo "osrm-extract failed"
+docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/vietnam-latest.osrm || echo "osrm-partition failed"
+docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize /data/vietnam-latest.osrm || echo "osrm-customize failed"
+```
+
+Run docker
+```
+docker run -d --name osrm-be -p 8082:5000 --network eboost_network --restart always -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/vietnam-latest.osrm
+```
